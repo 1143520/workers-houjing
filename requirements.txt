@@ -1,0 +1,8 @@
+PyQt5>=5.15.0
+PyQt5-Qt5>=5.15.0
+PyQt5-sip>=12.8.0
+numpy>=1.21.0
+matplotlib>=3.4.0
+pyserial>=3.5
+gTTS>=2.2.0
+pygame>=2.0.0

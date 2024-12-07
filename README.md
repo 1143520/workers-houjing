@@ -16,6 +16,56 @@
 - 基于Web Serial API实现串口通信
 - 部署在Cloudflare Workers上，保证低延迟和高可用性
 
+## 本地开发环境配置
+
+### 系统要求
+- Python 3.8+
+- Windows 10/11
+- Chrome 或 Edge 最新版本
+- 串口设备：支持115200波特率的串口通信
+- 稳定的网络连接
+
+### 依赖安装
+1. 克隆项目到本地：
+bash
+git clone [repository-url]
+cd worker-houjing
+```
+
+2. 创建并激活虚拟环境（推荐）：
+```bash
+python -m venv venv
+.\venv\Scripts\activate
+```
+
+3. 安装依赖：
+```bash
+pip install -r requirements.txt
+```
+
+### 运行程序
+1. 确保串口设备已正确连接并安装驱动
+2. 运行主程序：
+```bash
+python main.py
+```
+
+3. 登录系统：
+   - 用户名：航小北
+   - 密码：buaa
+
+### 项目结构
+```
+worker-houjing/
+├── main.py              # 主程序入口
+├── main_system.py       # 系统核心功能
+├── InterfaceUI.py       # 界面UI定义
+├── requirements.txt     # 项目依赖
+├── README.md           # 项目说明
+└── icons/              # UI图标资源
+    └── down-arrow.png  # 下拉箭头图标
+```
+
 ## 使用说明
 
 1. 系统登录
@@ -30,7 +80,7 @@
 3. 数据采集
    - 在左侧面板选择需要监测的传感器（可选择1-16号）
    - 填写患者信息（姓名、年龄等）
-   - 点击"开始采集"按钮开始���录数据
+   - 点击"开始采集"按钮开始记录数据
    - 数据会实时显示在右侧三个图表中
    - 点击"停止采集"结束记录
 
@@ -38,12 +88,6 @@
    - 点击"导出数据"按钮
    - 系统会自动生成包含测试数据的JSON文件
    - 文件名格式：pressure_data_YYYY-MM-DD.json
-
-## 系统要求
-
-- 浏览器：推荐使用 Chrome 或 Edge 最新版本
-- 串口设备：支持115200波特率的串口通信
-- 网络：需要稳定的网络连接
 
 ## 注意事项
 
@@ -58,4 +102,4 @@
 
 ## 开发者
 
-本系统由清华大学薛某支持开发。 
+本系统由清华大学薛某支持开发。``` 
