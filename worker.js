@@ -330,8 +330,8 @@ const VALID_CREDENTIALS = {
   
           // 更新图表数据
           function updateCharts(values) {
-              if (!isCollecting) return;  // 如果没有在采集状态，不更新图表
-              
+              if (!isCollecting) return;
+
               const timestamp = new Date().toLocaleTimeString();
               
               // 保存所有传感器的数据
@@ -350,11 +350,15 @@ const VALID_CREDENTIALS = {
               // 更新图表显示
               selectedSensors.forEach(function(sensorIndex, i) {
                   const chartId = 'chart' + (i + 1);
+                  const sensorData = allSensorData['sensor' + (sensorIndex + 1)];
+                  
+                  // 计算最大值
+                  const maxValue = Math.max(...sensorData);
                   
                   // 只显示最新的30个数据点
                   const displayData = {
                       x: allSensorData.timestamp.slice(-30),
-                      y: allSensorData['sensor' + (sensorIndex + 1)].slice(-30)
+                      y: sensorData.slice(-30)
                   };
                   
                   // 更新图表显示
@@ -371,22 +375,26 @@ const VALID_CREDENTIALS = {
                       marker: { 
                           size: 3,
                           color: '#3B82F6'
-                      }
+                      },
+                      name: '实时数据'
                   };
                   
                   const layout = {
-                      title: '传感器 ' + (sensorIndex + 1) + ' 实时数据',
+                      title: {
+                          text: '传感器 ' + (sensorIndex + 1) + ' 实时数据<br>最大值: ' + maxValue.toFixed(2) + 'g',
+                          font: { size: 14 }
+                      },
                       xaxis: { 
                           title: '时间',
                           showgrid: true,
                           gridcolor: '#E5E7EB'
                       },
                       yaxis: { 
-                          title: '压力值',
+                          title: '压力值(g)',
                           showgrid: true,
                           gridcolor: '#E5E7EB'
                       },
-                      margin: { t: 30, l: 50, r: 20, b: 40 },
+                      margin: { t: 50, l: 50, r: 20, b: 40 },
                       height: 250,
                       plot_bgcolor: 'white',
                       paper_bgcolor: 'white'
@@ -434,7 +442,6 @@ const VALID_CREDENTIALS = {
                   return;
               }
               
-              // 准备Excel工作表数据
               const wb = XLSX.utils.book_new();
               
               // 添加患者信息工作表
@@ -443,16 +450,49 @@ const VALID_CREDENTIALS = {
                   ['姓名', document.getElementById('patientName').value],
                   ['年龄', document.getElementById('patientAge').value],
                   ['科室', document.getElementById('department').value],
-                  ['设备编号', document.getElementById('deviceId').value]
+                  ['设备编号', document.getElementById('deviceId').value],
+                  ['测试时间', new Date().toLocaleString()]
               ];
               const wsPatient = XLSX.utils.aoa_to_sheet(patientInfo);
               XLSX.utils.book_append_sheet(wb, wsPatient, "患者信息");
               
-              // 为所有传感器创建数据工作表
+              // 添加数据分析总表
+              const analysisData = [
+                  ['传感器数据分析'],
+                  ['传感器编号', '最大值(g)', '最小值(g)', '平均值(g)', '标准差', '数据点数']
+              ];
+              
+              // 为所有传感器创建数据工作表和计算统计数据
               for (let i = 1; i <= 16; i++) {
-                  // 准备数据数组
+                  const sensorData = allSensorData['sensor' + i];
+                  
+                  // 计算统计数据
+                  const max = Math.max(...sensorData);
+                  const min = Math.min(...sensorData);
+                  const avg = sensorData.reduce((a, b) => a + b, 0) / sensorData.length;
+                  const stdDev = Math.sqrt(sensorData.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / sensorData.length);
+                  
+                  // 添加到分析总表
+                  analysisData.push([
+                      i,
+                      max.toFixed(2),
+                      min.toFixed(2),
+                      avg.toFixed(2),
+                      stdDev.toFixed(2),
+                      sensorData.length
+                  ]);
+                  
+                  // 准备传感器数据工作表
                   const data = [
-                      ['传感器' + i + '数据'],
+                      ['传感器' + i + '数据记录'],
+                      ['时间', '压力值(g)'],
+                      ['最大值:', max.toFixed(2)],
+                      ['最小值:', min.toFixed(2)],
+                      ['平均值:', avg.toFixed(2)],
+                      ['标准差:', stdDev.toFixed(2)],
+                      ['数据点数:', sensorData.length],
+                      [''],
+                      ['详细数据:'],
                       ['时间', '压力值(g)']
                   ];
                   
@@ -460,14 +500,22 @@ const VALID_CREDENTIALS = {
                   for (let j = 0; j < allSensorData.timestamp.length; j++) {
                       data.push([
                           allSensorData.timestamp[j],
-                          allSensorData['sensor' + i][j]
+                          sensorData[j]
                       ]);
                   }
                   
                   // 创建工作表
                   const ws = XLSX.utils.aoa_to_sheet(data);
+                  
+                  // 设置列宽
+                  ws['!cols'] = [{ wch: 20 }, { wch: 12 }];
+                  
                   XLSX.utils.book_append_sheet(wb, ws, "传感器" + i);
               }
+              
+              // 添加分析总表
+              const wsAnalysis = XLSX.utils.aoa_to_sheet(analysisData);
+              XLSX.utils.book_append_sheet(wb, wsAnalysis, "数据分析");
               
               // 生成精确到秒的时间戳
               const now = new Date();
@@ -890,7 +938,7 @@ const VALID_CREDENTIALS = {
     event.respondWith(handleRequest(event.request));
   });
   
-  // 数据分析和存储功能
+  // 数据分析以及存储功能
   const DATA_STORE = {
     sessions: new Map(),
     pressureData: new Map()
