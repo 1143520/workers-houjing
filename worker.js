@@ -268,11 +268,12 @@ const VALID_CREDENTIALS = {
           let reader = null;
           let keepReading = false;
           let isCollecting = false;
-          let allData = {
-              chart1: { x: [], y: [] },
-              chart2: { x: [], y: [] },
-              chart3: { x: [], y: [] }
+          let allSensorData = {
+              timestamp: []
           };
+          for (let i = 1; i <= 16; i++) {
+              allSensorData['sensor' + i] = [];
+          }
   
           // 初始化图表
           function initCharts() {
@@ -332,24 +333,28 @@ const VALID_CREDENTIALS = {
               if (!isCollecting) return;  // 如果没有在采集状态，不更新图表
               
               const timestamp = new Date().toLocaleTimeString();
+              
+              // 保存所有传感器的数据
+              allSensorData.timestamp.push(timestamp);
+              values.forEach((value, index) => {
+                  allSensorData['sensor' + (index + 1)].push(value);
+              });
+              
+              // 获取当前选择的传感器
               const selectedSensors = [
                   parseInt(document.getElementById('sensor1').value) - 1,
                   parseInt(document.getElementById('sensor2').value) - 1,
                   parseInt(document.getElementById('sensor3').value) - 1
               ];
   
-              // 更新每个图表
+              // 更新图表显示
               selectedSensors.forEach(function(sensorIndex, i) {
                   const chartId = 'chart' + (i + 1);
                   
-                  // 保存所有数据
-                  allData[chartId].x.push(timestamp);
-                  allData[chartId].y.push(values[sensorIndex]);
-                  
                   // 只显示最新的30个数据点
                   const displayData = {
-                      x: allData[chartId].x.slice(-30),
-                      y: allData[chartId].y.slice(-30)
+                      x: allSensorData.timestamp.slice(-30),
+                      y: allSensorData['sensor' + (sensorIndex + 1)].slice(-30)
                   };
                   
                   // 更新图表显示
@@ -357,21 +362,40 @@ const VALID_CREDENTIALS = {
                       x: displayData.x,
                       y: displayData.y,
                       mode: 'lines+markers',
-                      line: { color: '#3B82F6', width: 2 },
-                      marker: { size: 4 }
+                      line: { 
+                          color: '#3B82F6', 
+                          width: 2,
+                          shape: 'spline',
+                          smoothing: 1.3
+                      },
+                      marker: { 
+                          size: 3,
+                          color: '#3B82F6'
+                      }
                   };
                   
                   const layout = {
                       title: '传感器 ' + (sensorIndex + 1) + ' 实时数据',
-                      xaxis: { title: '时间' },
-                      yaxis: { title: '压力值' },
+                      xaxis: { 
+                          title: '时间',
+                          showgrid: true,
+                          gridcolor: '#E5E7EB'
+                      },
+                      yaxis: { 
+                          title: '压力值',
+                          showgrid: true,
+                          gridcolor: '#E5E7EB'
+                      },
                       margin: { t: 30, l: 50, r: 20, b: 40 },
-                      height: 250
+                      height: 250,
+                      plot_bgcolor: 'white',
+                      paper_bgcolor: 'white'
                   };
                   
                   Plotly.newPlot(chartId, [trace], layout, {
                       responsive: true,
-                      displayModeBar: false
+                      displayModeBar: false,
+                      showTips: false
                   });
               });
           }
@@ -387,12 +411,13 @@ const VALID_CREDENTIALS = {
               document.getElementById('startBtn').disabled = true;
               document.getElementById('stopBtn').disabled = false;
               
-              // 清空数据
-              allData = {
-                  chart1: { x: [], y: [] },
-                  chart2: { x: [], y: [] },
-                  chart3: { x: [], y: [] }
+              // 清空所有数据
+              allSensorData = {
+                  timestamp: []
               };
+              for (let i = 1; i <= 16; i++) {
+                  allSensorData['sensor' + i] = [];
+              }
           }
   
           // 停止数据采集
@@ -404,7 +429,7 @@ const VALID_CREDENTIALS = {
   
           // 导出数据为Excel
           function exportData() {
-              if (allData.chart1.x.length === 0) {
+              if (allSensorData.timestamp.length === 0) {
                   alert('没有可导出的数据');
                   return;
               }
@@ -423,28 +448,25 @@ const VALID_CREDENTIALS = {
               const wsPatient = XLSX.utils.aoa_to_sheet(patientInfo);
               XLSX.utils.book_append_sheet(wb, wsPatient, "患者信息");
               
-              // 为每个传感器创建数据工作表
-              for (let i = 1; i <= 3; i++) {
-                  const sensorId = document.getElementById('sensor' + i).value;
-                  const chartId = 'chart' + i;
-                  
+              // 为所有传感器创建数据工作表
+              for (let i = 1; i <= 16; i++) {
                   // 准备数据数组
                   const data = [
-                      ['传感器' + sensorId + '数据'],
+                      ['传感器' + i + '数据'],
                       ['时间', '压力值(g)']
                   ];
                   
                   // 添加所有数据点
-                  for (let j = 0; j < allData[chartId].x.length; j++) {
+                  for (let j = 0; j < allSensorData.timestamp.length; j++) {
                       data.push([
-                          allData[chartId].x[j],
-                          allData[chartId].y[j]
+                          allSensorData.timestamp[j],
+                          allSensorData['sensor' + i][j]
                       ]);
                   }
                   
                   // 创建工作表
                   const ws = XLSX.utils.aoa_to_sheet(data);
-                  XLSX.utils.book_append_sheet(wb, ws, "传感器" + sensorId);
+                  XLSX.utils.book_append_sheet(wb, ws, "传感器" + i);
               }
               
               // 生成精确到秒的时间戳
@@ -656,7 +678,7 @@ const VALID_CREDENTIALS = {
               </form>
               
               <p class="mt-8 text-center text-sm text-gray-500">
-                  由清华大学薛某支持开发
+                  由清华大学薛拳皇支持开发
               </p>
           </div>
       </div>
@@ -898,7 +920,7 @@ const VALID_CREDENTIALS = {
     return {
       baseTime: data.x[0],
       timeDiffs: data.x.slice(1).map((time, i) => 
-        new Date(time) - new Date(data.x[i])),
+        new Date(time).getTime() - new Date(data.x[i]).getTime()),
       values: data.y
     };
   }
