@@ -35,7 +35,6 @@ const VALID_CREDENTIALS = {
     <link rel="icon" type="image/jpeg" href="https://pic.wtr.cc/i/2024/11/29/6749922b0967c.jpeg" />
     <link href="https://cdn1.tianli0.top/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
     <script src="https://cdn1.tianli0.top/npm/plotly.js-dist@2.20.0/plotly.min.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
       <style>
           html, body {
               height: 100vh;
@@ -402,50 +401,36 @@ const VALID_CREDENTIALS = {
               document.getElementById('stopBtn').disabled = true;
           }
   
-          // 导出数据为Excel
+          // 导出数据
           function exportData() {
               if (allData.chart1.x.length === 0) {
                   alert('没有可导出的数据');
                   return;
               }
               
-              // 准备Excel工作表数据
-              const wb = XLSX.utils.book_new();
-              
-              // 添加患者信息工作表
-              const patientInfo = [
-                  ['患者信息'],
-                  ['姓名', document.getElementById('patientName').value],
-                  ['年龄', document.getElementById('patientAge').value],
-                  ['科室', document.getElementById('department').value],
-                  ['设备编号', document.getElementById('deviceId').value]
-              ];
-              const wsPatient = XLSX.utils.aoa_to_sheet(patientInfo);
-              XLSX.utils.book_append_sheet(wb, wsPatient, "患者信息");
-              
-              // 为每个传感器创建数据工作表
-              for (let i = 1; i <= 3; i++) {
-                  const sensorId = document.getElementById('sensor' + i).value;
-                  const chartId = 'chart' + i;
-                  
-                  // 准备数据数组
-                  const data = [
-                      ['传感器' + sensorId + '数据'],
-                      ['时间', '压力值(g)']
-                  ];
-                  
-                  // 添加所有数据点
-                  for (let j = 0; j < allData[chartId].x.length; j++) {
-                      data.push([
-                          allData[chartId].x[j],
-                          allData[chartId].y[j]
-                      ]);
+              const exportData = {
+                  sensor1: {
+                      sensorId: document.getElementById('sensor1').value,
+                      time: allData.chart1.x,
+                      values: allData.chart1.y
+                  },
+                  sensor2: {
+                      sensorId: document.getElementById('sensor2').value,
+                      time: allData.chart2.x,
+                      values: allData.chart2.y
+                  },
+                  sensor3: {
+                      sensorId: document.getElementById('sensor3').value,
+                      time: allData.chart3.x,
+                      values: allData.chart3.y
+                  },
+                  patientInfo: {
+                      name: document.getElementById('patientName').value,
+                      age: document.getElementById('patientAge').value,
+                      department: document.getElementById('department').value,
+                      deviceId: document.getElementById('deviceId').value
                   }
-                  
-                  // 创建工作表
-                  const ws = XLSX.utils.aoa_to_sheet(data);
-                  XLSX.utils.book_append_sheet(wb, ws, "传感器" + sensorId);
-              }
+              };
               
               // 生成精确到秒的时间戳
               const now = new Date();
@@ -456,8 +441,15 @@ const VALID_CREDENTIALS = {
                                ('0' + now.getMinutes()).slice(-2) + 
                                ('0' + now.getSeconds()).slice(-2);
               
-              // 导出Excel文件
-              XLSX.writeFile(wb, 'pressure_data_' + timestamp + '.xlsx');
+              const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'pressure_data_' + timestamp + '.json';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
           }
   
           // 退出登录
