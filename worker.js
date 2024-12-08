@@ -269,11 +269,10 @@ const VALID_CREDENTIALS = {
           let keepReading = false;
           let isCollecting = false;
           let allSensorData = {
-              timestamp: []
+              timestamp: [],
+              rawData: [],  // 存储原始数据，包含所有数据点
+              startTime: null  // 记录开始采集的时间
           };
-          for (let i = 1; i <= 16; i++) {
-              allSensorData['sensor' + i] = [];
-          }
   
           // 初始化图表
           function initCharts() {
@@ -334,12 +333,28 @@ const VALID_CREDENTIALS = {
 
               const timestamp = new Date().toLocaleTimeString();
               
-              // 保存所有传感器的数据
-              allSensorData.timestamp.push(timestamp);
-              values.forEach((value, index) => {
-                  allSensorData['sensor' + (index + 1)].push(value);
+              // 保存原始数据
+              allSensorData.rawData.push({
+                  timestamp: timestamp,
+                  values: [...values]  // 复制数组以避免引用问题
               });
               
+              // 更新显示用的数据（只保留每秒最后一个数据点）
+              const timestampIndex = allSensorData.timestamp.indexOf(timestamp);
+              if (timestampIndex === -1) {
+                  allSensorData.timestamp.push(timestamp);
+                  values.forEach((value, index) => {
+                      if (!allSensorData['sensor' + (index + 1)]) {
+                          allSensorData['sensor' + (index + 1)] = [];
+                      }
+                      allSensorData['sensor' + (index + 1)].push(value);
+                  });
+              } else {
+                  values.forEach((value, index) => {
+                      allSensorData['sensor' + (index + 1)][timestampIndex] = value;
+                  });
+              }
+  
               // 获取当前选择的传感器
               const selectedSensors = [
                   parseInt(document.getElementById('sensor1').value) - 1,
@@ -361,19 +376,18 @@ const VALID_CREDENTIALS = {
                       y: sensorData.slice(-30)
                   };
                   
-                  // 更新图表显示
+                  // 更新图表显示，移除平滑效果
                   const trace = {
                       x: displayData.x,
                       y: displayData.y,
                       mode: 'lines+markers',
                       line: { 
                           color: '#3B82F6', 
-                          width: 2,
-                          shape: 'spline',
-                          smoothing: 1.3
+                          width: 2
+                          // 移除 shape 和 smoothing 属性
                       },
                       marker: { 
-                          size: 3,
+                          size: 4,
                           color: '#3B82F6'
                       },
                       name: '实时数据'
@@ -392,7 +406,8 @@ const VALID_CREDENTIALS = {
                       yaxis: { 
                           title: '压力值(g)',
                           showgrid: true,
-                          gridcolor: '#E5E7EB'
+                          gridcolor: '#E5E7EB',
+                          range: [0, 2000]  // 固定y轴范围
                       },
                       margin: { t: 50, l: 50, r: 20, b: 40 },
                       height: 250,
@@ -419,13 +434,12 @@ const VALID_CREDENTIALS = {
               document.getElementById('startBtn').disabled = true;
               document.getElementById('stopBtn').disabled = false;
               
+              // 记录开始时间
+              allSensorData.startTime = new Date();
+              
               // 清空所有数据
-              allSensorData = {
-                  timestamp: []
-              };
-              for (let i = 1; i <= 16; i++) {
-                  allSensorData['sensor' + i] = [];
-              }
+              allSensorData.timestamp = [];
+              allSensorData.rawData = [];
           }
   
           // 停止数据采集
@@ -437,12 +451,18 @@ const VALID_CREDENTIALS = {
   
           // 导出数据为Excel
           function exportData() {
-              if (allSensorData.timestamp.length === 0) {
+              if (allSensorData.rawData.length === 0) {
                   alert('没有可导出的数据');
                   return;
               }
               
               const wb = XLSX.utils.book_new();
+              
+              // 计算检测时长
+              const endTime = new Date();
+              const duration = allSensorData.startTime ? 
+                  ((endTime - allSensorData.startTime) / 1000).toFixed(1) : 
+                  "未知";
               
               // 添加患者信息工作表
               const patientInfo = [
@@ -451,38 +471,29 @@ const VALID_CREDENTIALS = {
                   ['年龄', document.getElementById('patientAge').value],
                   ['科室', document.getElementById('department').value],
                   ['设备编号', document.getElementById('deviceId').value],
-                  ['测试时间', new Date().toLocaleString()]
+                  ['测试时间', new Date().toLocaleString()],
+                  ['检测时长', duration + ' 秒'],
+                  ['数据点总数', allSensorData.rawData.length],
+                  ['采样频率', (allSensorData.rawData.length / parseFloat(duration)).toFixed(1) + ' Hz']
               ];
+              
               const wsPatient = XLSX.utils.aoa_to_sheet(patientInfo);
               XLSX.utils.book_append_sheet(wb, wsPatient, "患者信息");
               
-              // 添加数据分析总表
-              const analysisData = [
-                  ['传感器数据分析'],
-                  ['传感器编号', '最大值(g)', '最小值(g)', '平均值(g)', '标准差', '数据点数']
-              ];
-              
-              // 为所有传感器创建数据工作表和计算统计数据
+              // 为每个传感器创建数据工作表
               for (let i = 1; i <= 16; i++) {
-                  const sensorData = allSensorData['sensor' + i];
+                  // 提取该传感器的所有数据
+                  const sensorData = allSensorData.rawData.map(item => item.values[i-1]);
                   
                   // 计算统计数据
                   const max = Math.max(...sensorData);
                   const min = Math.min(...sensorData);
                   const avg = sensorData.reduce((a, b) => a + b, 0) / sensorData.length;
-                  const stdDev = Math.sqrt(sensorData.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / sensorData.length);
+                  const stdDev = Math.sqrt(
+                      sensorData.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / sensorData.length
+                  );
                   
-                  // 添加到分析总表
-                  analysisData.push([
-                      i,
-                      max.toFixed(2),
-                      min.toFixed(2),
-                      avg.toFixed(2),
-                      stdDev.toFixed(2),
-                      sensorData.length
-                  ]);
-                  
-                  // 准备传感器数据工作表
+                  // 准备工作表数据
                   const data = [
                       ['传感器' + i + '数据记录'],
                       ['时间', '压力值(g)'],
@@ -491,33 +502,58 @@ const VALID_CREDENTIALS = {
                       ['平均值:', avg.toFixed(2)],
                       ['标准差:', stdDev.toFixed(2)],
                       ['数据点数:', sensorData.length],
+                      ['检测时长:', duration + ' 秒'],
+                      ['采样频率:', (sensorData.length / parseFloat(duration)).toFixed(1) + ' Hz'],
                       [''],
                       ['详细数据:'],
                       ['时间', '压力值(g)']
                   ];
                   
-                  // 添加所有数据点
-                  for (let j = 0; j < allSensorData.timestamp.length; j++) {
-                      data.push([
-                          allSensorData.timestamp[j],
-                          sensorData[j]
-                      ]);
-                  }
+                  // 添加所有原始数据点
+                  allSensorData.rawData.forEach(item => {
+                      data.push([item.timestamp, item.values[i-1]]);
+                  });
                   
                   // 创建工作表
                   const ws = XLSX.utils.aoa_to_sheet(data);
-                  
-                  // 设置列宽
                   ws['!cols'] = [{ wch: 20 }, { wch: 12 }];
-                  
                   XLSX.utils.book_append_sheet(wb, ws, "传感器" + i);
               }
               
-              // 添加分析总表
+              // 添加数据分析总表
+              const analysisData = [
+                  ['传感器数据分析'],
+                  ['检测时长:', duration + ' 秒'],
+                  ['数据点总数:', allSensorData.rawData.length],
+                  ['采样频率:', (allSensorData.rawData.length / parseFloat(duration)).toFixed(1) + ' Hz'],
+                  [''],
+                  ['传感器编号', '最大值(g)', '最小值(g)', '平均值(g)', '标准差', '数据点数']
+              ];
+              
+              // 添加每个传感器的统计数据
+              for (let i = 1; i <= 16; i++) {
+                  const sensorData = allSensorData.rawData.map(item => item.values[i-1]);
+                  const max = Math.max(...sensorData);
+                  const min = Math.min(...sensorData);
+                  const avg = sensorData.reduce((a, b) => a + b, 0) / sensorData.length;
+                  const stdDev = Math.sqrt(
+                      sensorData.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / sensorData.length
+                  );
+                  
+                  analysisData.push([
+                      i,
+                      max.toFixed(2),
+                      min.toFixed(2),
+                      avg.toFixed(2),
+                      stdDev.toFixed(2),
+                      sensorData.length
+                  ]);
+              }
+              
               const wsAnalysis = XLSX.utils.aoa_to_sheet(analysisData);
               XLSX.utils.book_append_sheet(wb, wsAnalysis, "数据分析");
               
-              // 生成精确到秒的时间戳
+              // 生成文件名并导出
               const now = new Date();
               const timestamp = now.getFullYear() + 
                                ('0' + (now.getMonth() + 1)).slice(-2) + 
@@ -526,7 +562,6 @@ const VALID_CREDENTIALS = {
                                ('0' + now.getMinutes()).slice(-2) + 
                                ('0' + now.getSeconds()).slice(-2);
               
-              // 导出Excel文件
               XLSX.writeFile(wb, 'pressure_data_' + timestamp + '.xlsx');
           }
   
@@ -693,7 +728,7 @@ const VALID_CREDENTIALS = {
   `;
   }
   
-  // 登录页面HTML
+  // 登陆界面HTML
   const loginPage = `
   <!DOCTYPE html>
   <html lang="zh">

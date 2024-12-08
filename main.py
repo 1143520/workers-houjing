@@ -172,7 +172,7 @@ class ModernLoginWindow(QMainWindow):
         support_label.setTextFormat(Qt.RichText)
         support_label.setText(
             '<a href="https://www.buaa.edu.cn/" style="color: #666666; text-decoration: none;">'
-            '由北京航空航天大学李介博课题组（李祥，范泰霖）支持开发</a>'
+            '由清华大学薛拳皇支持开发</a>'
         )
         support_label.setOpenExternalLinks(True)  # 启用外部链接
         support_label.setStyleSheet("""
