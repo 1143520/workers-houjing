@@ -8,38 +8,41 @@ def list_available_ports():
     # 获取系统检测到的串口
     physical_ports = list(serial.tools.list_ports.comports())
     
-    # 添加常用的虚拟串口
-    virtual_ports = ['COM1', 'COM2']  # 常用虚拟串口
-    
-    print("\n可用的串口列表：")
-    
+    # 使用集合来存储已经显示过的端口名称，用于去重
+    shown_ports = set()
     all_ports = []
     port_count = 0
     
-    # 打印物理串口
-    for i, port in enumerate(physical_ports):
-        port_str = f"{i + 1}. {port.device} - {port.description}"
-        print(port_str)
-        all_ports.append((port.device, port.description))
-        port_count += 1
+    print("\n可用的串口列表：")
     
-    # 尝试检测虚拟串口是否可用
-    for vport in virtual_ports:
-        try:
-            # 尝试临时打开串口来验证其是否可用
-            temp_ser = serial.Serial(vport)
-            temp_ser.close()
-            port_str = f"{port_count + 1}. {vport} - Virtual Serial Port"
-            if vport == 'COM2':
-                port_str += " (建议用于网页连接)"
-            elif vport == 'COM1':
-                port_str += " (建议用于数据模拟器)"
-            print(port_str)
-            all_ports.append((vport, "Virtual Serial Port"))
+    # 首先处理物理串口
+    for port in physical_ports:
+        if port.device not in shown_ports:
             port_count += 1
-        except:
-            # 如果串口不可用，则跳过
-            continue
+            port_str = f"{port_count}. {port.device} - {port.description}"
+            print(port_str)
+            all_ports.append((port.device, port.description))
+            shown_ports.add(port.device)
+    
+    # 添加常用的虚拟串口（如果还没有显示过）
+    virtual_ports = ['COM1', 'COM2']
+    for vport in virtual_ports:
+        if vport not in shown_ports:
+            try:
+                # 尝试临时打开串口来验证其是否可用
+                temp_ser = serial.Serial(vport)
+                temp_ser.close()
+                port_count += 1
+                port_str = f"{port_count}. {vport} - Virtual Serial Port"
+                if vport == 'COM2':
+                    port_str += " (建议用于网页连接)"
+                elif vport == 'COM1':
+                    port_str += " (建议用于数据模拟器)"
+                print(port_str)
+                all_ports.append((vport, "Virtual Serial Port"))
+                shown_ports.add(vport)
+            except:
+                continue
     
     if not all_ports:
         print("未检测到任何可用串口")

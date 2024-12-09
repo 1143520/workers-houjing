@@ -169,6 +169,17 @@ const VALID_CREDENTIALS = {
           .charts-panel::-webkit-scrollbar-thumb:hover {
               background: #a8a8a8;
           }
+  
+          @keyframes fadeInOut {
+              0% { opacity: 0; transform: translateY(-20px); }
+              10% { opacity: 1; transform: translateY(0); }
+              90% { opacity: 1; transform: translateY(0); }
+              100% { opacity: 0; transform: translateY(-20px); }
+          }
+  
+          .animate-fade-in-out {
+              animation: fadeInOut 3s ease-in-out forwards;
+          }
       </style>
   </head>
   <body>
@@ -430,6 +441,17 @@ const VALID_CREDENTIALS = {
                   return;
               }
               
+              // 检查必填信息
+              const patientName = document.getElementById('patientName').value;
+              const patientAge = document.getElementById('patientAge').value;
+              const department = document.getElementById('department').value;
+              const deviceId = document.getElementById('deviceId').value;
+
+              if (!patientName || !patientAge || !department || !deviceId) {
+                  alert('请填写完整的患者信息和设备信息');
+                  return;
+              }
+              
               isCollecting = true;
               document.getElementById('startBtn').disabled = true;
               document.getElementById('stopBtn').disabled = false;
@@ -440,6 +462,22 @@ const VALID_CREDENTIALS = {
               // 清空所有数据
               allSensorData.timestamp = [];
               allSensorData.rawData = [];
+
+              // 添加开始采集的提示
+              const connectionStatus = document.getElementById('connectionStatus');
+              connectionStatus.textContent = '正在采集数据...';
+              connectionStatus.style.color = '#10B981'; // 绿色
+
+              // 添加Toast提示
+              const toast = document.createElement('div');
+              toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in-out';
+              toast.textContent = '开始采集数据';
+              document.body.appendChild(toast);
+
+              // 3秒后移除Toast
+              setTimeout(() => {
+                  toast.remove();
+              }, 3000);
           }
   
           // 停止数据采集
@@ -447,10 +485,31 @@ const VALID_CREDENTIALS = {
               isCollecting = false;
               document.getElementById('startBtn').disabled = false;
               document.getElementById('stopBtn').disabled = true;
+
+              // 更新状态提示
+              const connectionStatus = document.getElementById('connectionStatus');
+              connectionStatus.textContent = '已连接';
+              connectionStatus.style.color = '#10B981';
+
+              // 添加停止采集的Toast提示
+              const toast = document.createElement('div');
+              toast.className = 'fixed top-4 right-4 bg-yellow-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in-out';
+              toast.textContent = '停止采集数据';
+              document.body.appendChild(toast);
+
+              // 3秒后移除Toast
+              setTimeout(() => {
+                  toast.remove();
+              }, 3000);
           }
   
           // 导出数据为Excel
           function exportData() {
+              if (typeof XLSX === 'undefined') {
+                  alert('XLSX 库加载失败，请刷新页面重试');
+                  return;
+              }
+              
               if (allSensorData.rawData.length === 0) {
                   alert('没有可导出的数据');
                   return;
@@ -866,7 +925,7 @@ const VALID_CREDENTIALS = {
     }
   }
   
-  // 请求处理和路由
+  // 请处理和路由
   const ROUTES = {
     GET: {
       '/': () => new Response(loginPage, {
