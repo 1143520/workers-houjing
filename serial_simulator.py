@@ -154,11 +154,11 @@ def main():
             # 生成16个0-2000的随机整数
             random_numbers = [random.randint(0, 2000) for _ in range(16)]
             
-            # 将数字转换为逗号分隔的字符串，并添加换行符
-            data_string = ','.join(map(str, random_numbers)) + '\n'
+            # 将数字转换为逗号分隔的字符串，并添加readSensorData()前缀
+            data_string = f"readSensorData(): {','.join(map(str, random_numbers))}\n"
             
             # 发送数据
-            ser.write(data_string.encode())
+            ser.write(data_string.encode('ascii'))
             
             # 打印发送的数据
             print(f"已发送: {data_string.strip()}")

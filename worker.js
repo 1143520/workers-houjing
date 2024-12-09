@@ -765,17 +765,21 @@ const VALID_CREDENTIALS = {
               }
           }
   
-          // 处理串口数据
-          function processSerialData(data) {
-              // 将接收到的数据转换为文本
-              const textDecoder = new TextDecoder();
-              const text = textDecoder.decode(data);
-              
+          // 数据处理函数
+          async function processSerialData(value) {
               try {
-                  // 解析数据并更新图表
-                  const values = text.trim().split(',').map(Number);
-                  if (values.length === 16) {
-                      updateCharts(values);
+                  const text = new TextDecoder().decode(value);
+                  // 检查数据格式是否符合要求
+                  if (text.startsWith('readSensorData(): ')) {
+                      // 提取数字部分
+                      const dataStr = text.replace('readSensorData(): ', '').trim();
+                      // 分割并转换为数字数组
+                      const numbers = dataStr.split(',').map(num => parseInt(num.trim()));
+                      
+                      if (numbers.length === 16) {
+                          // 使用原有的 updateCharts 函数更新图表
+                          updateCharts(numbers);
+                      }
                   }
               } catch (error) {
                   console.error('数据处理错误:', error);
